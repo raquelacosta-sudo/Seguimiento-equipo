@@ -612,16 +612,16 @@
         <div class="chart-canvas-wrap"><canvas id="chart-gmv-trend"></canvas></div>
       </div>
       <div class="chart-card">
-        <h3>Top marcas que suman y restan · LM vs PM</h3>
-        <div class="sub">Top 10 que crecen (verde) + top 10 que caen (rojo) — abr 26 vs mar 26</div>
+        <h3>Top marcas que suman y restan · YoY</h3>
+        <div class="sub">Top 10 que crecen (verde) + top 10 que caen (rojo) — mes actual vs mismo mes año anterior</div>
         <div class="chart-canvas-wrap tall"><canvas id="chart-waterfall"></canvas></div>
       </div>
     </div>
 
     <!-- Gráfica de cascada flotante -->
     <div class="chart-card" style="margin-bottom:16px;">
-      <h3>📊 Cascada de crecimiento · mar 26 → abr 26</h3>
-      <div class="sub">Cómo se construye el GMV del mes: barra base (PM) + contribuciones marca por marca + total final (LM)</div>
+      <h3>📊 Cascada de crecimiento YoY</h3>
+      <div class="sub">Cómo cambió el GMV vs el año pasado: barra base (mismo mes año anterior) + contribuciones marca por marca + total final (mes actual)</div>
       <div class="chart-canvas-wrap tall"><canvas id="chart-cascada"></canvas></div>
     </div>
 
@@ -1698,7 +1698,7 @@ function renderGmvTrend(){
 }
 
 function getBrandDeltasReal(){
-  // Devuelve [{marca, kam, last (LM), prev (PM), delta}] respetando filtros
+  // Devuelve [{marca, kam, last (LM abr26), prev (MMAA abr25), delta}] YoY respetando filtros
   const rp = DATA.realPeriods;
   const out = [];
   if(!rp) return out;
@@ -1708,11 +1708,11 @@ function getBrandDeltasReal(){
     let last, prev;
     if(STATE.canal === 'all'){
       last = vals.gmv_lm || 0;
-      prev = vals.gmv_pm || 0;
+      prev = vals.gmv_mmaa || 0;   // YoY: mismo mes año anterior
     } else {
       const bc = rp.byBrandCanal[`${marca}__${STATE.canal}`];
       if(!bc) return;
-      last = bc.gmv_lm || 0; prev = bc.gmv_pm || 0;
+      last = bc.gmv_lm || 0; prev = bc.gmv_mmaa || 0;
     }
     const delta = last - prev;
     if(Math.abs(delta) > 1) out.push({ marca, kam: vals.kam, last, prev, delta });
@@ -1735,7 +1735,7 @@ function renderWaterfall(){
     data:{
       labels: combined.map(b => b.marca),
       datasets:[{
-        label:'Δ GMV (USD) · último período vs anterior',
+        label:'Δ GMV (USD) · YoY (mes actual vs mismo mes año anterior)',
         data: combined.map(b => b.delta),
         backgroundColor: combined.map(b => b.delta >= 0 ? 'rgba(16,185,129,0.85)' : 'rgba(255,61,85,0.85)'),
         borderRadius: 4
@@ -1769,11 +1769,11 @@ function renderWaterfall(){
    ================================================================= */
 function renderWaterfallCascada(){
   const tot = getRealPeriodTotals();
-  if(!tot || tot.gmv_pm === 0){
+  if(!tot || tot.gmv_mmaa === 0){
     destroyChart('cascada');
     return;
   }
-  const brandDeltas = getBrandDeltasReal();
+  const brandDeltas = getBrandDeltasReal();   // YoY: LM vs MMAA
   // Top 8 contribuciones positivas + top 8 negativas (sumamos el resto en "Otras")
   const sortedDesc = [...brandDeltas].sort((a,b)=> b.delta - a.delta);
   const positivas = sortedDesc.filter(b => b.delta > 0);
@@ -1783,14 +1783,14 @@ function renderWaterfallCascada(){
   const restoPos = positivas.slice(8).reduce((s,b) => s + b.delta, 0);
   const restoNeg = negativas.slice(8).reduce((s,b) => s + b.delta, 0);
 
-  // Construir secuencia: PM → todas positivas → todas negativas → otras pos → otras neg → LM
+  // Construir secuencia YoY: base MMAA (año anterior) → +/- marcas → total LM (mes actual)
   const steps = [];
-  steps.push({ label: 'PM\\n('+DATA.realPeriods.periods.pm.label+')', value: tot.gmv_pm, type: 'base' });
+  steps.push({ label: DATA.realPeriods.periods.mmaa.label, value: tot.gmv_mmaa, type: 'base' });
   topPos.forEach(b => steps.push({ label: b.marca, value: b.delta, type: 'pos' }));
   if(restoPos > 1) steps.push({ label: '+ Otras ('+(positivas.length-8)+')', value: restoPos, type: 'pos' });
   topNeg.forEach(b => steps.push({ label: b.marca, value: b.delta, type: 'neg' }));
   if(restoNeg < -1) steps.push({ label: '- Otras ('+(negativas.length-8)+')', value: restoNeg, type: 'neg' });
-  steps.push({ label: 'LM\\n('+DATA.realPeriods.periods.lm.label+')', value: tot.gmv_lm, type: 'total' });
+  steps.push({ label: DATA.realPeriods.periods.lm.label, value: tot.gmv_lm, type: 'total' });
 
   // Floating bars: [start, end] para cada step
   let running = 0;
@@ -1831,8 +1831,8 @@ function renderWaterfallCascada(){
           callbacks:{
             label: ctx => {
               const step = steps[ctx.dataIndex];
-              if(step.type === 'base') return 'Base PM: $' + Math.round(step.value).toLocaleString();
-              if(step.type === 'total') return 'Total LM: $' + Math.round(step.value).toLocaleString();
+              if(step.type === 'base') return 'Base ' + DATA.realPeriods.periods.mmaa.label + ': $' + Math.round(step.value).toLocaleString();
+              if(step.type === 'total') return 'Total ' + DATA.realPeriods.periods.lm.label + ': $' + Math.round(step.value).toLocaleString();
               const sign = step.value >= 0 ? '+' : '';
               return step.label + ': ' + sign + '$' + Math.round(step.value).toLocaleString();
             }
@@ -1840,9 +1840,9 @@ function renderWaterfallCascada(){
         },
         title: {
           display: true,
-          text: 'Base PM: $' + Math.round(tot.gmv_pm).toLocaleString() +
-                '  →  Total LM: $' + Math.round(tot.gmv_lm).toLocaleString() +
-                '  (Δ ' + (tot.gmv_lm >= tot.gmv_pm ? '+' : '') + '$' + Math.round(tot.gmv_lm - tot.gmv_pm).toLocaleString() + ')',
+          text: DATA.realPeriods.periods.mmaa.label + ': $' + Math.round(tot.gmv_mmaa).toLocaleString() +
+                '  →  ' + DATA.realPeriods.periods.lm.label + ': $' + Math.round(tot.gmv_lm).toLocaleString() +
+                '  (Δ YoY ' + (tot.gmv_lm >= tot.gmv_mmaa ? '+' : '') + '$' + Math.round(tot.gmv_lm - tot.gmv_mmaa).toLocaleString() + ')',
           font: { family:'Nunito', size: 13, weight: 800 }, color: '#1a1d29', padding: { bottom: 10 }
         }
       },
