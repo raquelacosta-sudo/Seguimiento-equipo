@@ -2886,4 +2886,44 @@ function bindEvents(){
       const c = commits[kam] || {};
       const v = rp.byKam[kam];
       const dLM = pctChange(v.gmv_lm, v.gmv_pm);
-      txt += kam + ' (GMV abr ' + fmt.usdM(v.gmv_lm) + ' - ' + (dLM==null?'-':(dLM>=0?'+':'')+dLM.toFixed(1)+'% LM') + ')
+      txt += kam + ' (GMV abr ' + fmt.usdM(v.gmv_lm) + ' - ' + (dLM==null?'-':(dLM>=0?'+':'')+dLM.toFixed(1)+'% LM') + ')        fmt.pct(dLM) + ' LM)\n';
+      if(c.comentarios) txt += '  Situacion: ' + c.comentarios + '\n';
+      if(c.compromisos) txt += '  Compromisos: ' + c.compromisos + '\n';
+      txt += '\n';
+    });
+    const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'compromisos_' + new Date().toISOString().slice(0,10) + '.txt';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  });
+}
+
+function loadCommits(){ return _commitsCache; }
+
+function refreshAll(){
+  const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'executive';
+  requestAnimationFrame(() => {
+    if(activeTab==='executive') renderExecutive();
+    else if(activeTab==='radar') renderRadar();
+    else if(activeTab==='deepdive'){ renderDeepDive(); if(STATE.deepdiveBrand) renderDDCallouts(STATE.deepdiveBrand); }
+    else if(activeTab==='compromisos') renderCompromisos();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildFilters();
+  bindEvents();
+  const mi = document.getElementById('meta-info');
+  if(mi) mi.textContent = 'Actualizado: ' + (DATA.meta.generated_at || '—');
+  refreshAll();
+});
+</script>
+</body>
+</html>
+
+</script>
+</body>
+</html>
