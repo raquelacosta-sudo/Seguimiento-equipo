@@ -781,6 +781,11 @@
           <div class="sub">Penetración relativa en su segmento</div>
           <div class="chart-canvas-wrap"><canvas id="dd-share"></canvas></div>
         </div>
+        <div class="chart-card">
+          <h3>Conversión · CVR mensual</h3>
+          <div class="sub">SS→ATC · ATC→OP · CVR total (SS→OP)</div>
+          <div class="chart-canvas-wrap"><canvas id="dd-cvr"></canvas></div>
+        </div>
       </div>
     </div>
 
@@ -2278,6 +2283,7 @@ function renderDeepDive(){
   // Layers
   renderDDTraffic(b);
   renderDDShare(b);
+  renderDDCVR(b);
   renderDDFunnel(b);
   renderDDUsers(b);
   renderDDFrequency(b);
@@ -2344,6 +2350,38 @@ function renderDDTraffic(b){
       ]
     },
     options: chartDualAxis()
+  });
+}
+
+function renderDDCVR(b){
+  const s = brandSeries(b);
+  destroyChart('ddCvr');
+  CHARTS.ddCvr = new Chart(document.getElementById('dd-cvr'),{
+    type:'line',
+    data:{
+      labels: s.map(p => fmtMesAnio(p.w)),
+      datasets:[
+        {
+          label:'SS → ATC %',
+          data: s.map(p => p.ss ? +(100*p.atc/p.ss).toFixed(1) : 0),
+          borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.08)',
+          tension:0.3, yAxisID:'y'
+        },
+        {
+          label:'ATC → OP %',
+          data: s.map(p => p.atc ? +(100*p.op/p.atc).toFixed(1) : 0),
+          borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,0.08)',
+          tension:0.3, yAxisID:'y'
+        },
+        {
+          label:'CVR total (SS→OP) %',
+          data: s.map(p => p.ss ? +(100*p.op/p.ss).toFixed(2) : 0),
+          borderColor:'#ff3d55', backgroundColor:'rgba(255,61,85,0.10)',
+          tension:0.3, borderWidth:2.5, yAxisID:'y'
+        }
+      ]
+    },
+    options: chartLineOpts(null, {axisFormat:'pct'})
   });
 }
 
