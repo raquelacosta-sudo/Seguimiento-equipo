@@ -2916,7 +2916,7 @@ function refreshAll(){
    ================================================================= */
 function init(){
   document.getElementById('meta-info').textContent =
-    `Cartera: ${DATA.meta.leader} · ${Object.keys(DATA.data).length} KAMs · ${collectAllBrandsUnfiltered().length} marcas · Datos al 17 may 26 (Snowflake)`;
+    `Cartera: ${DATA.meta.leader} · ${Object.keys(DATA.data).length} KAMs · ${collectAllBrandsUnfiltered().length} marcas · ${DATA.meta.generated_at || 'Datos Snowflake'}`;
   buildFilters();
   bindEvents();
   switchTab('executive');
