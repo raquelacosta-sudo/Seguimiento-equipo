@@ -235,6 +235,12 @@ function buildTotal(parsed){
         if(/CONVERS|CVR/.test(m.toUpperCase())){
           let o=0,t=0;kamKeys.forEach(k=>{const v=idx[k][sem];if(v){o+=v['ORDENES']||v['Orders']||0;t+=v['TRÁFICO']||v['TRAFICO']||v['Traffic']||0;}});
           vals[m]=t?o/t*100:null;
+        } else if(/DELIV|RATE/i.test(m)){
+          // Delivery Rate TOTAL = Σ Revenue / Σ Bookings (derivado de los agregados)
+          const rk=metrics.find(x=>/REVENUE/i.test(x)), bkk=metrics.find(x=>/BOOKIN/i.test(x));
+          let rev=0,bk=0,any=false;
+          kamKeys.forEach(k=>{const v=idx[k][sem];if(v){if(rk&&v[rk]!=null){rev+=v[rk];any=true;}if(bkk&&v[bkk]!=null){bk+=v[bkk];}}});
+          vals[m]=(bk&&any)?rev/bk*100:null;
         } else {
           let num=0,w=0;kamKeys.forEach(k=>{const v=idx[k][sem];if(v){const wv=v['VENTAS']||v['REVENUE']||v['REVERNUE']||1;const mv=v[m];if(mv!=null){num+=mv*wv;w+=wv;}}});
           vals[m]=w?num/w:null;
