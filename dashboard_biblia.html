@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biblia Raque · Seguimiento Equipo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --rappi:#FF441F; --rappi-dark:#D8351A; --ink:#1c1c1e; --muted:#6b7280;
+    --line:#e7e7ea; --bg:#f5f6f8; --card:#ffffff; --ok:#16a34a; --okbg:#e9f9ef;
+    --trend:#8b5cf6; --up:#16a34a; --down:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+  header{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);padding:14px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;transition:background .3s,border-color .3s}
+  body.complete header{background:var(--okbg);border-bottom-color:#bfe9cc}
+  .brand{font-weight:800;font-size:18px;letter-spacing:-.3px}
+  .brand .dot{color:var(--rappi)}
+  .spacer{flex:1}
+  select,button{font:inherit;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 12px;cursor:pointer}
+  select:focus{outline:2px solid var(--rappi)}
+  .pill{font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;background:#fff3f0;color:var(--rappi);border:1px solid #ffd9cf}
+  body.complete .pill{background:var(--ok);color:#fff;border-color:var(--ok)}
+  nav.tabs{display:flex;gap:6px;padding:12px 20px 0;flex-wrap:wrap}
+  nav.tabs button{border:1px solid var(--line);background:#fff;border-radius:10px 10px 0 0;padding:9px 14px;font-weight:600;color:var(--muted)}
+  nav.tabs button.active{color:var(--ink);border-bottom-color:#fff;box-shadow:0 -2px 0 var(--rappi) inset}
+  main{padding:16px 20px 60px}
+  .view{display:none}.view.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(430px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h3{margin:0 0 2px;font-size:15px}
+  .card .sub{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .kpi{display:flex;gap:14px;align-items:baseline;margin-bottom:6px}
+  .kpi .val{font-size:22px;font-weight:800}
+  .chip{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .chip.up{color:var(--up);background:#e9f9ef}.chip.down{color:var(--down);background:#fdecec}
+  .canvas-wrap{position:relative;height:210px}
+  textarea{width:100%;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit;resize:vertical;min-height:52px}
+  textarea.filled{border-color:#bfe9cc;background:#f6fdf8}
+  .save-note{font-size:11px;color:var(--muted);margin-top:3px;min-height:14px}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:#fafafa;position:sticky;top:64px}
+  .tup{color:var(--up);font-weight:700}.tdown{color:var(--down);font-weight:700}
+  .banner{background:#fff8e1;border:1px solid #ffe08a;color:#8a6d00;border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:13px}
+  .banner.err{background:#fdecec;border-color:#f5b5b5;color:#a12626}
+  .deal-week{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .deal-week h4{margin:0 0 10px;font-size:14px}
+  .deal-week h4 .tag{font-size:11px;font-weight:700;color:var(--rappi);background:#fff3f0;border:1px solid #ffd9cf;border-radius:999px;padding:2px 8px;margin-left:8px}
+  .deal-row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:start;margin-bottom:8px}
+  .deal-row label{font-size:12px;font-weight:700;color:var(--muted);padding-top:8px}
+  .fc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin:8px 0 4px}
+  .fc-box{border:1px solid var(--line);border-radius:12px;padding:10px}
+  .fc-box .wk{font-size:12px;color:var(--muted);font-weight:700}
+  .fc-box input{width:100%;margin-top:6px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  h2.sec{font-size:16px;margin:4px 0 12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Biblia Raque <span class="dot">·</span> Seguimiento Equipo</div>
+  <div class="spacer"></div>
+  <label class="small muted">KAM:&nbsp;</label>
+  <select id="kamSel"></select>
+  <span class="pill" id="statusPill">Comentarios pendientes</span>
+</header>
+
+<nav class="tabs">
+  <button data-view="performance" class="active">📊 Performance</button>
+  <button data-view="ads">📈 Ads</button>
+  <button data-view="varia">🔺 Variación %</button>
+  <button data-view="forecast">🎯 Forecast Revenue</button>
+  <button data-view="deals">🗓️ Calendario Deals</button>
+</nav>
+
+<main>
+  <div id="loadMsg" class="banner">Cargando datos del Sheet…</div>
+
+  <section id="view-performance" class="view active">
+    <h2 class="sec">Performance semanal <span class="muted small" id="perfKamLbl"></span></h2>
+    <div class="grid" id="perfGrid"></div>
+  </section>
+
+  <section id="view-ads" class="view">
+    <h2 class="sec">Ads semanal <span class="muted small" id="adsKamLbl"></span></h2>
+    <div id="adsMsg"></div>
+    <div class="grid" id="adsGrid"></div>
+  </section>
+
+  <section id="view-varia" class="view">
+    <h2 class="sec">Variación % · última semana cerrada vs semana anterior</h2>
+    <div id="variaWrap"></div>
+  </section>
+
+  <section id="view-forecast" class="view">
+    <h2 class="sec">Forecast de Revenue</h2>
+    <div class="card">
+      <h3>Captura tu forecast de las próximas semanas</h3>
+      <div class="sub">Se guarda en la nube. Cuando la semana cierre, se compara el real contra el forecast que dejaste antes. También aparece como línea punteada en la gráfica de Revenue (pestaña Ads).</div>
+      <div class="fc-grid" id="fcInputs"></div>
+      <div class="save-note" id="fcNote"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>Histórico · Real vs Forecast</h3>
+      <div class="sub">Cada fila compara el revenue real de la semana cerrada contra el forecast guardado la semana previa.</div>
+      <div id="fcHist"></div>
+    </div>
+  </section>
+
+  <section id="view-deals" class="view">
+    <h2 class="sec">Calendario de Deals · próximas semanas</h2>
+    <div class="sub muted small" style="margin-bottom:10px">Agrega tus <b>Mejores Deals</b> y <b>Viral Deals</b> por semana. Se guarda en la nube y se conserva aunque avance el calendario.</div>
+    <div id="dealsWrap"></div>
+  </section>
+</main>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const SHEET_ID = '1yXaUYQPTXKMbBGFiFbr15t-gVJTGgE1pt5AUPJunXdI';
+const TAB_CANDIDATES = {
+  performance: ['TABLASS PERFORMANCE','PERFORMANCE','Performance','TABLAS PERFORMANCE'],
+  ads:         ['ADS','TABLASS ADS','Ads','TABLAS ADS','TABLASS_ADS']
+};
+const FB_URL   = 'https://dashboard-comercial-semanal-default-rtdb.firebaseio.com';
+const NS_COM   = 'biblia_comentarios';
+const NS_FC    = 'biblia_forecast';
+const NS_DEALS = 'biblia_deals';
+
+const KAM_LABELS = {
+  'RAQUE':'TOTAL (Raquel)','MAURY':'Itzel Maury','LINA':'Lina Galán',
+  'SANGABRIEL':'María Sangabriel','PALACIOS':'Mariana Palacios',
+  'MIRIAM':'Miriam Lara','NORMA':'Norma Bautista'
+};
+
+/* ============================================================
+   UTILIDADES
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const fbKey = s => String(s).replace(/[.#$\[\]\/ ]/g,'_');
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function isPct(h){h=h.toUpperCase();return /CONVERS|MD|RATE|DELIV|CVR|%/.test(h);}
+function isCur(h){h=h.toUpperCase();return /VENTA|REVENUE|BOOKING|GMV|SALES|INGRE/.test(h);}
+function isRevenue(h){h=h.toUpperCase();return /REVENUE|VENTA|GMV|SALES|INGRE/.test(h);}
+function fmt(v,h){
+  if(v==null||!isFinite(v)) return '—';
+  if(isCur(h)) return '$'+Math.round(v).toLocaleString('es-MX');
+  if(isPct(h)) return v.toFixed(1)+'%';
+  return Math.round(v).toLocaleString('es-MX');
+}
+function pctChange(cur,prev){ if(prev==null||prev===0||!isFinite(prev)||cur==null) return null; return (cur-prev)/Math.abs(prev)*100; }
+function niceName(s){return (s||'').trim().replace(/_/g,' ').replace(/\bPCT\b/gi,'%');}
+function kamKeyFromName(n){const u=(n||'').toUpperCase();
+  if(/MAURY|ITZEL/.test(u))return 'MAURY';
+  if(/LINA|GALAN/.test(u))return 'LINA';
+  if(/SANGABRIEL/.test(u))return 'SANGABRIEL';
+  if(/PALACIOS|MARIANA/.test(u))return 'PALACIOS';
+  if(/MIRIAM|LARA/.test(u))return 'MIRIAM';
+  if(/NORMA|BAUTISTA/.test(u))return 'NORMA';
+  return u.replace(/[^A-ZÁÉÍÓÚÑ]/g,'');}
+
+function parseCSV(text){
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"')q=true; else if(c===','){row.push(cur);cur='';} else if(c==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else if(c==='\r'){} else cur+=c; }
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+const gvizURL = tab => `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tab)}&_=${Date.now()}`;
+
+async function loadTab(cands){
+  for(const tab of cands){
+    try{
+      const r = await fetch(gvizURL(tab));
+      if(!r.ok) continue;
+      const txt = await r.text();
+      if(!txt.includes(',')) continue;
+      const rows = parseCSV(txt).filter(r=>r.some(c=>c!==''));
+      if(rows.length>=3) return {tab, rows};
+    }catch(e){ /* siguiente candidato */ }
+  }
+  return null;
+}
+
+function isSemanaHead(c){return /SEMANA/i.test(c||'') && (c||'').trim().length<25;}
+function parseWide(rows){
+  const headRow   = rows[0].map(c=>(c||'').trim());
+  const dataRows  = rows.slice(1);
+  const blocks=[];
+  for(let i=0;i<headRow.length;i++){
+    if(isSemanaHead(headRow[i])){
+      const lbl=headRow[i].replace(/SEMANA/i,'').trim();   // "RAQUE SEMANA" -> "RAQUE"
+      let end=i+1;const metrics=[];
+      while(end<headRow.length && !isSemanaHead(headRow[end])){
+        if(headRow[end]!=='') metrics.push({col:end,name:headRow[end]});
+        end++;
+      }
+      blocks.push({semanaCol:i,label:lbl,metrics});
+    }
+  }
+  const out={};
+  blocks.forEach(b=>{
+    const key=(b.label||'').toUpperCase().replace(/[^A-ZÁÉÍÓÚÑ]/g,'');
+    const weeks=[];
+    dataRows.forEach(r=>{
+      const s=(r[b.semanaCol]||'').trim();
+      if(!/^\d{4}-\d{2}-\d{2}/.test(s)) return;
+      const vals={};
+      b.metrics.forEach(m=>{const raw=(r[m.col]||'').replace(/[^0-9.\-]/g,'');const n=parseFloat(raw);vals[m.name]=isFinite(n)?n:null;});
+      weeks.push({semana:s.slice(0,10),vals});
+    });
+    if(weeks.length) out[key]={label:b.label,weeks,metrics:b.metrics.map(m=>m.name)};
+  });
+  return out;
+}
+
+function buildTotal(parsed){
+  const kamKeys=Object.keys(parsed).filter(k=>!k.startsWith('RAQU')&&k!=='__TOTAL__');
+  if(!kamKeys.length) return null;
+  const metrics=parsed[kamKeys[0]].metrics;
+  const weekSet=new Set();kamKeys.forEach(k=>parsed[k].weeks.forEach(w=>weekSet.add(w.semana)));
+  const weeks=[...weekSet].sort();
+  const idx={};kamKeys.forEach(k=>{idx[k]={};parsed[k].weeks.forEach(w=>idx[k][w.semana]=w.vals);});
+  const rows=weeks.map(sem=>{
+    const vals={};
+    metrics.forEach(m=>{
+      if(isPct(m)){
+        if(/CONVERS|CVR/.test(m.toUpperCase())){
+          let o=0,t=0;kamKeys.forEach(k=>{const v=idx[k][sem];if(v){o+=v['ORDENES']||v['Orders']||0;t+=v['TRÁFICO']||v['TRAFICO']||v['Traffic']||0;}});
+          vals[m]=t?o/t*100:null;
+        } else {
+          let num=0,w=0;kamKeys.forEach(k=>{const v=idx[k][sem];if(v){const wv=v['VENTAS']||v['REVENUE']||v['REVERNUE']||1;const mv=v[m];if(mv!=null){num+=mv*wv;w+=wv;}}});
+          vals[m]=w?num/w:null;
+        }
+      } else {
+        let s=0,any=false;kamKeys.forEach(k=>{const v=idx[k][sem];if(v&&v[m]!=null){s+=v[m];any=true;}});
+        vals[m]=any?s:null;
+      }
+    });
+    return {semana:sem,vals};
+  });
+  return {label:'TOTAL (Raquel)',weeks:rows,metrics};
+}
+
+/* Formato LARGO (tab ADS): columnas SEMANA_LUNES, KAM, métricas... con preámbulo de Aleph */
+function parseLong(rows){
+  let weekCol=-1, dataStart=-1;
+  for(let i=0;i<rows.length && dataStart<0;i++){
+    for(let c=0;c<rows[i].length;c++){
+      if(/^\d{4}-\d{2}-\d{2}/.test((rows[i][c]||'').trim())){
+        const nx=(rows[i][c+1]||'').trim();
+        if(nx && /[A-Za-zÁÉÍÓÚÑ]/.test(nx)){ weekCol=c; dataStart=i; break; }
+      }
+    }
+  }
+  if(dataStart<0) return null;
+  const kamCol=weekCol+1;
+  const drow=rows[dataStart];
+  const metricCols=[];
+  for(let c=kamCol+1;c<drow.length;c++){const v=(drow[c]||'').replace(/[^0-9.\-]/g,'');if(v!==''&&isFinite(parseFloat(v)))metricCols.push(c);}
+  const names={};
+  for(let i=dataStart-1;i>=0;i--){
+    metricCols.forEach(c=>{if(!names[c]){const t=(rows[i][c]||'').trim();if(t&&!/^\d/.test(t)&&t.length<45)names[c]=t;}});
+    if(metricCols.every(c=>names[c]))break;
+  }
+  const metricNames=metricCols.map(c=>names[c]||('Métrica '+c));
+  const out={};
+  for(let i=dataStart;i<rows.length;i++){
+    const w=(rows[i][weekCol]||'').trim();if(!/^\d{4}-\d{2}-\d{2}/.test(w))continue;
+    const kamRaw=(rows[i][kamCol]||'').trim();if(!kamRaw)continue;
+    const key=kamKeyFromName(kamRaw);
+    const vals={};metricCols.forEach((c,mi)=>{const n=parseFloat((rows[i][c]||'').replace(/[^0-9.\-]/g,''));vals[metricNames[mi]]=isFinite(n)?n:null;});
+    out[key]=out[key]||{label:kamRaw,weeks:[],metrics:metricNames};
+    out[key].weeks.push({semana:w.slice(0,10),vals});
+  }
+  return out;
+}
+
+/* Detecta el layout: ancho (bloques con 'SEMANA') vs largo */
+function parseTab(rows){
+  const r0=rows[0]||[];
+  const semanaCells=r0.filter(isSemanaHead);
+  if(semanaCells.length>=2) return parseWide(rows);   // layout ancho por KAM
+  return parseLong(rows) || {};                        // layout largo (ADS)
+}
+
+function trendline(ys){
+  const pts=ys.map((y,i)=>[i,y]).filter(p=>isFinite(p[1]));
+  const n=pts.length;if(n<2)return ys.map(()=>null);
+  let sx=0,sy=0,sxy=0,sxx=0;pts.forEach(([x,y])=>{sx+=x;sy+=y;sxy+=x*y;sxx+=x*x;});
+  const b=(n*sxy-sx*sy)/(n*sxx-sx*sx),a=(sy-b*sx)/n;
+  return ys.map((_,i)=>a+b*i);
+}
+
+/* ============================================================
+   ESTADO
+   ============================================================ */
+let PERF={}, ADS={}, CHARTS=[], COMMENTS={}, FC_CACHE={}, DEALS_CACHE={};
+let CURRENT_KAM='TOTAL';
+
+/* ============================================================
+   FIREBASE REST
+   ============================================================ */
+async function fbGet(ns){try{const r=await fetch(`${FB_URL}/${ns}.json`);return r.ok?(await r.json()||{}):{};}catch(e){return {};}}
+async function fbPut(ns,path,val){try{const r=await fetch(`${FB_URL}/${ns}/${path}.json`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});return r.ok;}catch(e){return false;}}
+
+/* ============================================================
+   CHARTS + COMENTARIOS
+   ============================================================ */
+function kamKeyFromSel(){return CURRENT_KAM==='TOTAL'?'TOTAL':CURRENT_KAM;}
+function dataForKam(parsed){ if(CURRENT_KAM==='TOTAL') return parsed.__TOTAL__; return parsed[CURRENT_KAM]||null; }
+
+function makeChartCard(container, tabId, metric, series){
+  const labels=series.map(p=>p.semana);
+  const ys=series.map(p=>p.vals[metric]);
+  const last=ys[ys.length-1], prev=ys[ys.length-2];
+  const d=pctChange(last,prev);
+  // overlay de forecast en la gráfica de revenue
+  const revMetric=isRevenue(metric);
+  let exLabels=labels, exYs=ys, fcArr=null;
+  if(revMetric){
+    const kk=fbKey(kamKeyFromSel());const fc=(FC_CACHE[kk]||{});
+    const lastWk=labels[labels.length-1]||'';
+    const future=Object.keys(fc).filter(w=>fc[w]!=null&&w>lastWk).sort();
+    exLabels=labels.concat(future);
+    exYs=ys.concat(future.map(()=>null));
+    fcArr=exLabels.map(w=>fc[w]!=null?fc[w]:null);
+  }
+  const card=document.createElement('div');card.className='card';
+  const chipCls=d==null?'':(d>=0?'up':'down');
+  const chipTxt=d==null?'':(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'%';
+  card.innerHTML=`
+    <h3>${esc(niceName(metric))}</h3>
+    <div class="kpi"><span class="val">${fmt(last,metric)}</span>
+      ${d==null?'':`<span class="chip ${chipCls}">${chipTxt} vs sem. ant.</span>`}</div>
+    <div class="sub">Última semana: ${labels[labels.length-1]||'—'}</div>
+    <div class="canvas-wrap"><canvas></canvas></div>
+    <textarea data-metric="${esc(metric)}" data-tab="${tabId}" placeholder="Comentario / interpretación de ${esc(niceName(metric))}…"></textarea>
+    <div class="save-note"></div>`;
+  container.appendChild(card);
+  const ctx=card.querySelector('canvas').getContext('2d');
+  const pct=isPct(metric);
+  const trendData=trendline(ys).concat(revMetric?exLabels.slice(labels.length).map(()=>null):[]);
+  const dsets=[
+    {label:niceName(metric),data:exYs,borderColor:'#FF441F',backgroundColor:'rgba(255,68,31,.08)',fill:true,tension:.25,pointRadius:0,pointHoverRadius:4,borderWidth:2},
+    {label:'Tendencia',data:trendData,borderColor:'#8b5cf6',borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false}
+  ];
+  if(fcArr){dsets.push({label:'Forecast',data:fcArr,borderColor:'#0ea5e9',borderDash:[3,3],pointRadius:3,pointBackgroundColor:'#0ea5e9',borderWidth:1.5,fill:false,spanGaps:true});}
+  const ch=new Chart(ctx,{type:'line',data:{labels:exLabels,datasets:dsets},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:revMetric,position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmt(c.parsed.y,metric)}}},
+    scales:{x:{ticks:{maxTicksLimit:8,font:{size:10}}},y:{ticks:{font:{size:10},callback:v=>pct?v.toFixed(0)+'%':(isCur(metric)?'$'+(v/1000).toFixed(0)+'k':v.toLocaleString('es-MX'))}}}}});
+  CHARTS.push(ch);
+  const ta=card.querySelector('textarea');const note=card.querySelector('.save-note');
+  const kk=fbKey(kamKeyFromSel());
+  const fieldKey=tabId+'__'+fbKey(metric);
+  const existing=(COMMENTS[kk]||{})[fieldKey];
+  if(existing){ta.value=existing;ta.classList.add('filled');}
+  ta.addEventListener('input',()=>{ta.classList.toggle('filled',ta.value.trim()!=='');updateStatus();});
+  ta.addEventListener('blur',async()=>{
+    note.textContent='Guardando…';
+    const ok=await fbPut(NS_COM,kk+'/'+fieldKey,ta.value);
+    COMMENTS[kk]=COMMENTS[kk]||{};COMMENTS[kk][fieldKey]=ta.value;
+    note.textContent=ok?'✓ Guardado en nube':'⚠ Guardado solo local';
+    updateStatus();
+  });
+}
+
+function renderCharts(){
+  CHARTS.forEach(c=>c.destroy());CHARTS=[];
+  const perf=dataForKam(PERF), ads=dataForKam(ADS);
+  const kamName=CURRENT_KAM==='TOTAL'?'TOTAL (Raquel)':(KAM_LABELS[CURRENT_KAM]||CURRENT_KAM);
+  $('#perfKamLbl').textContent='· '+kamName;
+  $('#adsKamLbl').textContent='· '+kamName;
+  const pg=$('#perfGrid');pg.innerHTML='';
+  if(perf){perf.metrics.forEach(m=>makeChartCard(pg,'perf',m,perf.weeks));}
+  else pg.innerHTML='<div class="banner err">Sin datos de performance para este KAM.</div>';
+  const ag=$('#adsGrid');ag.innerHTML='';
+  if(ads){$('#adsMsg').innerHTML='';ads.metrics.forEach(m=>makeChartCard(ag,'ads',m,ads.weeks));}
+  else if(!Object.keys(ADS).length){$('#adsMsg').innerHTML='<div class="banner">La pestaña <b>ADS</b> aún no se pudo leer. Verifica que exista y que el Sheet esté compartido. Esta sección se llenará sola cuando esté disponible.</div>';}
+  updateStatus();
+}
+
+function updateStatus(){
+  const boxes=[...document.querySelectorAll('#perfGrid textarea, #adsGrid textarea')];
+  const total=boxes.length, filled=boxes.filter(t=>t.value.trim()!=='').length;
+  const complete=total>0 && filled===total;
+  document.body.classList.toggle('complete',complete);
+  $('#statusPill').textContent=complete?('✓ Comentarios completos ('+filled+'/'+total+')'):('Comentarios '+filled+'/'+total);
+}
+
+/* ============================================================
+   VARIACIÓN %
+   ============================================================ */
+function renderVaria(){
+  const wrap=$('#variaWrap');
+  const base=PERF.__TOTAL__||Object.values(PERF).find(v=>v&&v.metrics);
+  if(!base){wrap.innerHTML='<div class="banner err">Sin datos.</div>';return;}
+  const metrics=base.metrics;
+  const kamKeys=['TOTAL',...Object.keys(KAM_LABELS).filter(k=>k!=='RAQUE'&&PERF[k])];
+  const rowFor=(k)=>{const d=k==='TOTAL'?PERF.__TOTAL__:PERF[k];if(!d)return null;const w=d.weeks;return {cur:w[w.length-1],prev:w[w.length-2]};};
+  const any=rowFor('TOTAL');const semLbl=any&&any.cur?any.cur.semana:'—';
+  let html='<div class="card"><div class="sub">Semana cerrada: <b>'+semLbl+'</b> · comparada vs la semana anterior.</div><div style="overflow:auto"><table><thead><tr><th>KAM</th>';
+  metrics.forEach(m=>html+='<th>'+esc(niceName(m))+'</th>');
+  html+='</tr></thead><tbody>';
+  kamKeys.forEach(k=>{
+    const r=rowFor(k);if(!r||!r.cur)return;
+    html+='<tr><td>'+(k==='TOTAL'?'TOTAL':esc(KAM_LABELS[k]||k))+'</td>';
+    metrics.forEach(m=>{
+      const cur=r.cur.vals[m], prev=r.prev?r.prev.vals[m]:null, d=pctChange(cur,prev);
+      const cls=d==null?'':(d>=0?'tup':'tdown');const arrow=d==null?'':(d>=0?'▲':'▼');
+      html+='<td><div>'+fmt(cur,m)+'</div><div class="small '+cls+'">'+(d==null?'':arrow+' '+Math.abs(d).toFixed(1)+'%')+'</div></td>';
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div></div>';
+  wrap.innerHTML=html;
+}
+
+/* ============================================================
+   FORECAST
+   ============================================================ */
+function mondayOf(d){const x=new Date(d);const g=x.getDay();const diff=(g===0?-6:1-g);x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x;}
+function ymd(d){return d.toISOString().slice(0,10);}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x;}
+function upcomingMonday(){const t=new Date();return addDays(mondayOf(t),(t.getDay()===1?0:7));}
+function revenueSeriesForKam(){
+  const ads=dataForKam(ADS), perf=dataForKam(PERF);
+  let src=null,metric=null;
+  if(ads){metric=ads.metrics.find(isRevenue);if(metric)src=ads;}
+  if(!src&&perf){metric=perf.metrics.find(isRevenue);if(metric)src=perf;}
+  if(!src)return null;
+  return {metric,weeks:src.weeks};
+}
+async function renderForecast(){
+  FC_CACHE=await fbGet(NS_FC);
+  const kk=fbKey(kamKeyFromSel());
+  const my=FC_CACHE[kk]||{};
+  const start=upcomingMonday();
+  const weeks=[0,1,2,3].map(i=>ymd(addDays(start,i*7)));
+  $('#fcInputs').innerHTML=weeks.map(w=>`
+    <div class="fc-box"><div class="wk">Semana ${w}</div>
+    <input type="number" step="1000" data-week="${w}" placeholder="Forecast revenue $" value="${my[w]!=null?my[w]:''}"></div>`).join('');
+  $('#fcInputs').querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change',async()=>{
+      const w=inp.dataset.week;const val=inp.value===''?null:parseFloat(inp.value);
+      $('#fcNote').textContent='Guardando…';
+      const ok=await fbPut(NS_FC,kk+'/'+w,val);
+      FC_CACHE[kk]=FC_CACHE[kk]||{};FC_CACHE[kk][w]=val;
+      $('#fcNote').textContent=ok?'✓ Forecast guardado en nube':'⚠ No se pudo guardar';
+      renderForecastHist();
+    });
+  });
+  renderForecastHist();
+}
+function renderForecastHist(){
+  const rev=revenueSeriesForKam();const box=$('#fcHist');
+  if(!rev){box.innerHTML='<div class="muted small">Aún no hay columna de revenue disponible.</div>';return;}
+  const kk=fbKey(kamKeyFromSel());const fc=(FC_CACHE[kk]||{});
+  const rows=rev.weeks.filter(w=>fc[w.semana]!=null).slice(-12).reverse();
+  if(!rows.length){box.innerHTML='<div class="muted small">Todavía no hay semanas cerradas con forecast guardado. En cuanto captures un forecast y esa semana cierre, aparecerá aquí el comparativo.</div>';return;}
+  let h='<div style="overflow:auto"><table><thead><tr><th>Semana</th><th>Forecast</th><th>Real</th><th>Δ vs forecast</th></tr></thead><tbody>';
+  rows.forEach(w=>{const f=fc[w.semana],real=w.vals[rev.metric];const d=pctChange(real,f);const cls=d==null?'':(d>=0?'tup':'tdown');
+    h+='<tr><td>'+w.semana+'</td><td>'+fmt(f,rev.metric)+'</td><td>'+fmt(real,rev.metric)+'</td><td class="'+cls+'">'+(d==null?'—':(d>=0?'▲ ':'▼ ')+Math.abs(d).toFixed(1)+'%')+'</td></tr>';});
+  h+='</tbody></table></div>';box.innerHTML=h;
+}
+
+/* ============================================================
+   CALENDARIO DEALS (próxima + 4 subsecuentes)
+   ============================================================ */
+async function renderDeals(){
+  DEALS_CACHE=await fbGet(NS_DEALS);
+  const kk=fbKey(kamKeyFromSel());
+  const my=DEALS_CACHE[kk]||{};
+  const start=upcomingMonday();
+  const weeks=[0,1,2,3,4].map(i=>ymd(addDays(start,i*7)));
+  const wrap=$('#dealsWrap');
+  wrap.innerHTML=weeks.map((w,i)=>{
+    const rec=my[fbKey(w)]||{};
+    return `<div class="deal-week"><h4>Semana del ${w}${i===0?'<span class="tag">próxima a iniciar</span>':''}</h4>
+      <div class="deal-row"><label>🏆 Mejores Deals</label>
+        <textarea data-week="${w}" data-kind="mejores" placeholder="Mejores deals de la semana…">${esc(rec.mejores||'')}</textarea></div>
+      <div class="deal-row"><label>🔥 Viral Deals</label>
+        <textarea data-week="${w}" data-kind="virales" placeholder="Viral deals de la semana…">${esc(rec.virales||'')}</textarea></div>
+      <div class="save-note" data-note="${w}"></div></div>`;
+  }).join('');
+  wrap.querySelectorAll('textarea').forEach(ta=>{
+    ta.addEventListener('blur',async()=>{
+      const w=ta.dataset.week,kind=ta.dataset.kind;
+      const note=wrap.querySelector(`[data-note="${w}"]`);note.textContent='Guardando…';
+      const ok=await fbPut(NS_DEALS,kk+'/'+fbKey(w)+'/'+kind,ta.value);
+      DEALS_CACHE[kk]=DEALS_CACHE[kk]||{};DEALS_CACHE[kk][fbKey(w)]=DEALS_CACHE[kk][fbKey(w)]||{};DEALS_CACHE[kk][fbKey(w)][kind]=ta.value;
+      note.textContent=ok?'✓ Guardado en nube':'⚠ Guardado solo local';
+    });
+  });
+}
+
+/* ============================================================
+   NAV + INIT
+   ============================================================ */
+document.querySelectorAll('nav.tabs button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    b.classList.add('active');$('#view-'+b.dataset.view).classList.add('active');
+    if(b.dataset.view==='performance'||b.dataset.view==='ads')renderCharts();
+    if(b.dataset.view==='forecast')renderForecast();
+    if(b.dataset.view==='deals')renderDeals();
+    if(b.dataset.view==='varia')renderVaria();
+  });
+});
+
+async function onKamChange(){
+  CURRENT_KAM=$('#kamSel').value;
+  renderCharts();
+  const active=document.querySelector('nav.tabs button.active').dataset.view;
+  if(active==='forecast')renderForecast();
+  if(active==='deals')renderDeals();
+  if(active==='varia')renderVaria();
+}
+
+function fillKamSelector(){
+  const sel=$('#kamSel');const opts=['<option value="TOTAL">TOTAL (Raquel)</option>'];
+  Object.keys(KAM_LABELS).filter(k=>k!=='RAQUE').forEach(k=>{if(PERF[k])opts.push(`<option value="${k}">${KAM_LABELS[k]}</option>`);});
+  sel.innerHTML=opts.join('');sel.addEventListener('change',onKamChange);
+}
+
+async function init(){
+  COMMENTS=await fbGet(NS_COM);
+  FC_CACHE=await fbGet(NS_FC);
+  const [p,a]=await Promise.all([loadTab(TAB_CANDIDATES.performance),loadTab(TAB_CANDIDATES.ads)]);
+  if(p){PERF=parseTab(p.rows);PERF.__TOTAL__=buildTotal(PERF);}
+  if(a){ADS=parseTab(a.rows);ADS.__TOTAL__=buildTotal(ADS);}
+  if(!p){$('#loadMsg').className='banner err';$('#loadMsg').innerHTML='No se pudo leer el Sheet. Compártelo como <b>“Cualquiera con el enlace: Lector”</b> (Compartir → Acceso general) y recarga. Las secciones de forecast y deals funcionan igual.';}
+  else{$('#loadMsg').style.display='none';}
+  fillKamSelector();
+  renderCharts();
+}
+init();
+</script>
+</body>
+</html>
