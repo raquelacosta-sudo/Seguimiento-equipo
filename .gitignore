@@ -1,0 +1,10 @@
+# credenciales — nunca al repo
+.github_token
+token.json
+
+# insumos y trabajo local
+raw/
+__pycache__/
+*.pyc
+.claude/
+_qa_*.txt
