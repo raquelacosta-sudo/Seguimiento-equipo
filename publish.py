@@ -81,6 +81,12 @@ def main():
         subidos += 1
         print(f'  + {f}  ({len(datos)/1024:.0f} KB)')
 
+    # Lo que existe en el repo remoto pero ya no esta versionado localmente se borra.
+    for f in remoto:
+        if f not in archivos:
+            tree.append({'path': f, 'mode': '100644', 'type': 'blob', 'sha': None})
+            print(f'  - {f}  (se elimina del repo)')
+
     if not tree:
         print('\nNo hay cambios que publicar: el repo ya esta al dia.')
         return
