@@ -21,6 +21,7 @@ function Paso($n, $t) { Write-Host "`n[$n] $t" -ForegroundColor Cyan }
 
 Write-Host "=======================================================" -ForegroundColor Cyan
 Write-Host "  SEGUIMIENTO EQUIPO - actualizacion" -ForegroundColor Cyan
+Write-Host "  $(Get-Date -Format 'dddd dd/MM/yyyy HH:mm:ss')" -ForegroundColor Cyan
 Write-Host "=======================================================" -ForegroundColor Cyan
 
 # --- 1. datos -------------------------------------------------------
@@ -45,10 +46,15 @@ $meta  = Get-Content "data\seguimiento.json" -Raw | ConvertFrom-Json
 $hasta = $meta.meta.data_hasta
 $msg   = "Datos al $hasta (fuente: $($meta.meta.fuente))"
 
+# git escribe avisos por stderr; con ErrorActionPreference='Stop' eso aborta el
+# script cuando corre como tarea programada. Aqui se toleran.
+$previo = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
 git add -A
 if (git status --porcelain) {
   git -c user.name="Raquel Acosta" -c user.email="raquel.acosta@rappi.com" commit -q -m $msg
 }
+$ErrorActionPreference = $previo
 
 # Se publica con el token de .github_token via la API de GitHub, para no
 # depender de que git tenga credenciales guardadas.

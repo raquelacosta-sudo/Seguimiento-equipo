@@ -24,8 +24,12 @@ if ($Quitar) {
   exit 0
 }
 
+# Con -File, todo lo que va despues del script se le pasa como argumento y la
+# redireccion nunca ocurre (la bitacora quedaba vacia). Con -Command si se
+# interpreta, asi que la salida completa acaba en refresh.log.
+$cmd = "& '$HERE\refresh.ps1' *>&1 | Tee-Object -FilePath '$HERE\refresh.log' -Append; exit `$LASTEXITCODE"
 $accion = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$HERE\refresh.ps1`" *>> `"$HERE\refresh.log`"" `
+  -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`"" `
   -WorkingDirectory $HERE
 
 $disparador = if ($Diario) {

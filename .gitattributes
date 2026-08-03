@@ -1,0 +1,3 @@
+# No reescribir saltos de linea. Evita el churn CRLF/LF y, sobre todo, los avisos
+# de git por stderr que abortaban refresh.ps1 al correr como tarea programada.
+* -text
