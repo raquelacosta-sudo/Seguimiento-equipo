@@ -195,12 +195,14 @@ def comparar_con_anterior(brands, meses):
     if P.get('meta', {}).get('fuente') != 'snowflake':
         return None   # no tiene sentido contrastar contra un respaldo
 
+    # meses llega como objetos date; el snapshot anterior los guarda en ISO.
+    iso = [m.isoformat() if hasattr(m, 'isoformat') else str(m) for m in meses]
     pm = P['meta']['meses']
-    comunes = [m for m in meses if m in pm]
+    comunes = [m for m in iso if m in pm]
     if not comunes:
         return None
     ref = comunes[-2] if len(comunes) > 1 else comunes[-1]
-    ia, ib = pm.index(ref), meses.index(ref)
+    ia, ib = pm.index(ref), iso.index(ref)
 
     ant = defaultdict(float)
     for b in P['brands']:
