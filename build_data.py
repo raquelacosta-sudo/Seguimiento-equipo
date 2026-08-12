@@ -182,6 +182,51 @@ def from_sheet():
     return series, catalogo, [], max_day, 'sheet'
 
 
+def comparar_con_anterior(brands, meses):
+    """Diferencia de cartera contra el snapshot vigente, con el GMV que se lleva
+    o trae cada marca (medido en el ultimo mes comun)."""
+    prev_path = os.path.join(HERE, 'data', 'seguimiento.json')
+    if not os.path.exists(prev_path):
+        return None
+    try:
+        P = json.load(open(prev_path, encoding='utf-8'))
+    except Exception:
+        return None
+    if P.get('meta', {}).get('fuente') != 'snowflake':
+        return None   # no tiene sentido contrastar contra un respaldo
+
+    pm = P['meta']['meses']
+    comunes = [m for m in meses if m in pm]
+    if not comunes:
+        return None
+    ref = comunes[-2] if len(comunes) > 1 else comunes[-1]
+    ia, ib = pm.index(ref), meses.index(ref)
+
+    ant = defaultdict(float)
+    for b in P['brands']:
+        ant[b['marca']] += (b['gmv'][ia] or 0)
+    act = defaultdict(float)
+    for b in brands:
+        act[b['marca']] += (b['gmv'][ib] or 0)
+
+    kam_ant = {b['marca']: b['kam'] for b in P['brands']}
+    kam_act = {b['marca']: b['kam'] for b in brands}
+
+    salieron = [{'marca': m, 'kam': kam_ant.get(m, ''), 'gmv': round(ant[m], 2)}
+                for m in sorted(set(ant) - set(act), key=lambda x: -ant[x])]
+    entraron = [{'marca': m, 'kam': kam_act.get(m, ''), 'gmv': round(act[m], 2)}
+                for m in sorted(set(act) - set(ant), key=lambda x: -act[x])]
+    movidas = [{'marca': m, 'de': kam_ant[m], 'a': kam_act[m]}
+               for m in sorted(set(ant) & set(act)) if kam_ant.get(m) != kam_act.get(m)]
+
+    if not (salieron or entraron or movidas):
+        return None
+    return {'mes_referencia': ref, 'desde': P['meta']['generated_at'],
+            'salieron': salieron, 'entraron': entraron, 'movidas': movidas,
+            'gmv_que_salio': round(sum(s['gmv'] for s in salieron), 2),
+            'gmv_que_entro': round(sum(e['gmv'] for e in entraron), 2)}
+
+
 # ------------------------------------------------------------------ ensamble
 def ensamblar(series, catalogo, mtd, max_day, fuente):
     meses = sorted({r['mes'] for r in series})
@@ -238,8 +283,15 @@ def ensamblar(series, catalogo, mtd, max_day, fuente):
                          if v is not None and v < 0],
     }
 
+    # La cartera se define con BRAND_OWNER_LEADER de HOY y se aplica a toda la
+    # historia: si una marca cambia de duenno, desaparece tambien de los meses
+    # pasados y un mes ya cerrado cambia de valor entre una corrida y otra.
+    # Se deja registrado el cambio para que el dashboard lo avise.
+    cambios = comparar_con_anterior(brands, meses)
+
     return {
         'meta': {
+            'cartera_cambios': cambios,
             'generated_at': dt.datetime.now().isoformat(timespec='seconds'),
             'fuente': fuente,
             'data_hasta': max_day.isoformat(),

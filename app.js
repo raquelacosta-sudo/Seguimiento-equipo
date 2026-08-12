@@ -306,6 +306,23 @@ function renderResumen() {
   const gMoM = pct(a.gmv[i], a.gmv[p]);
   const gYoY = y >= 0 ? pct(a.gmv[i], a.gmv[y]) : null;
 
+  // Si la cartera cambió de dueño entre snapshots, el histórico se reescribe
+  // entero. Hay que decirlo antes de que alguien lea la caída como desempeño.
+  const cc = D.meta.cartera_cambios;
+  if (cc && (cc.salieron.length || cc.entraron.length)) {
+    const lista = a => a.slice(0, 5).map(x =>
+      `${esc(x.marca)} (${F.usdK(x.gmv)}${x.kam ? ', ' + esc(x.kam) : ''})`).join(', ')
+      + (a.length > 5 ? ` y ${a.length - 5} más` : '');
+    const partes = [];
+    if (cc.salieron.length) partes.push(`<b>${cc.salieron.length} cuentas salieron</b> de la cartera,
+      que en ${F.mes(cc.mes_referencia)} valían ${F.usdK(cc.gmv_que_salio)}: ${lista(cc.salieron)}`);
+    if (cc.entraron.length) partes.push(`<b>${cc.entraron.length} entraron</b>
+      (${F.usdK(cc.gmv_que_entro)}): ${lista(cc.entraron)}`);
+    al.push(['warning', '🔀', `<b>La cartera cambió desde la última actualización.</b> ${partes.join('. ')}.
+      Ojo: el histórico se arma con los dueños de hoy, así que <b>los meses pasados también cambiaron de valor</b>.
+      Si un mes ya cerrado se ve más bajo que la semana pasada, es por esto y no por desempeño.`]);
+  }
+
   if (D.meta.mes_parcial) {
     al.push(['info', 'ℹ️', `<b>${F.mes(M[M.length - 1])} va en curso.</b> Hay ${D.meta.dias_transcurridos} de
       ${D.meta.dias_del_mes} días. Todas las comparaciones de esta pestaña usan
