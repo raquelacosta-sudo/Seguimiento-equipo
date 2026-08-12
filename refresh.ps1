@@ -8,7 +8,7 @@
 #        o:  powershell -ExecutionPolicy Bypass -File refresh.ps1
 #        parámetros:  -NoPush   (solo regenera, no publica)
 # =====================================================================
-param([switch]$NoPush)
+param([switch]$NoPush, [switch]$Forzar)
 
 $ErrorActionPreference = 'Stop'
 $HERE = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -24,19 +24,42 @@ Write-Host "  SEGUIMIENTO EQUIPO - actualizacion" -ForegroundColor Cyan
 Write-Host "  $(Get-Date -Format 'dddd dd/MM/yyyy HH:mm:ss')" -ForegroundColor Cyan
 Write-Host "=======================================================" -ForegroundColor Cyan
 
+# Se genera a un archivo aparte y solo se reemplaza el bueno si pasa el QA.
+# Asi una corrida fallida nunca destruye el ultimo snapshot valido.
+$BUENO   = Join-Path $HERE "data\seguimiento.json"
+$CANDIDATO = Join-Path $HERE "data\_candidato.json"
+
+# Si ya esta al dia no se hace nada. Esto permite programar varios intentos en
+# el dia (por si el primero cae fuera de la VPN) sin trabajo repetido.
+if (-not $Forzar -and (Test-Path $BUENO)) {
+  $actual = (Get-Content $BUENO -Raw | ConvertFrom-Json).meta.data_hasta
+  $atraso = (New-TimeSpan -Start ([datetime]$actual) -End (Get-Date)).Days
+  if ($atraso -le 2) {
+    Write-Host "Ya esta al dia (datos hasta $actual). No hay nada que hacer." -ForegroundColor Green
+    Write-Host "Para regenerar de todos modos:  .\refresh.ps1 -Forzar"
+    exit 0
+  }
+}
+
 # --- 1. datos -------------------------------------------------------
 Paso 1 "Bajando datos de Snowflake..."
-& $PY build_data.py
-if ($LASTEXITCODE -ne 0) { Write-Host "Fallo la generacion de datos." -ForegroundColor Red; exit 1 }
+& $PY build_data.py --salida $CANDIDATO
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "`nNo se pudieron bajar datos nuevos. El dashboard sigue con los anteriores." -ForegroundColor Red
+  Remove-Item $CANDIDATO -ErrorAction SilentlyContinue
+  exit 1
+}
 
 # --- 2. QA ----------------------------------------------------------
 Paso 2 "Controles de calidad..."
-& $PY qa_check.py
+& $PY qa_check.py $CANDIDATO
 if ($LASTEXITCODE -ne 0) {
   Write-Host "`nLos controles de calidad NO pasaron. No se publica." -ForegroundColor Red
-  Write-Host "Revisa el detalle de arriba y vuelve a correr." -ForegroundColor Yellow
+  Write-Host "El dashboard sigue mostrando los datos anteriores, que si eran validos." -ForegroundColor Yellow
+  Remove-Item $CANDIDATO -ErrorAction SilentlyContinue
   exit 1
 }
+Move-Item $CANDIDATO $BUENO -Force
 
 if ($NoPush) { Write-Host "`nListo (sin publicar, -NoPush)." -ForegroundColor Green; exit 0 }
 

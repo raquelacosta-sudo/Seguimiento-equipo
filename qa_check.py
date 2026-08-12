@@ -8,9 +8,9 @@ import sys, os, json, datetime as dt
 sys.stdout.reconfigure(encoding='utf-8')
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-PATH = os.path.join(HERE, 'data', 'seguimiento.json')
+PATH = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'data', 'seguimiento.json')
 if not os.path.exists(PATH):
-    print('FALLA: no existe data/seguimiento.json'); sys.exit(1)
+    print(f'FALLA: no existe {PATH}'); sys.exit(1)
 
 D = json.load(open(PATH, encoding='utf-8'))
 meta, brands, M = D['meta'], D['brands'], D['meta']['meses']

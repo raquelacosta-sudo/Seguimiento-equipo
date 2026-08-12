@@ -9,3 +9,4 @@ __pycache__/
 .claude/
 _qa_*.txt
 refresh.log
+data/_candidato.json

@@ -32,10 +32,13 @@ $accion = New-ScheduledTaskAction -Execute 'powershell.exe' `
   -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$cmd`"" `
   -WorkingDirectory $HERE
 
-$disparador = if ($Diario) {
-  New-ScheduledTaskTrigger -Daily -At $Hora
-} else {
-  New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Dia -At $Hora
+# Tres intentos en el dia. Si el primero cae fuera de la VPN (Snowflake bloquea
+# por IP), los siguientes lo recuperan; y si el primero funciono, los demas ven
+# los datos al dia y salen sin hacer nada.
+$horas = @($Hora, '11:00', '15:00')
+$disparador = $horas | ForEach-Object {
+  if ($Diario) { New-ScheduledTaskTrigger -Daily -At $_ }
+  else { New-ScheduledTaskTrigger -Weekly -DaysOfWeek $Dia -At $_ }
 }
 
 $ajustes = New-ScheduledTaskSettingsSet `
@@ -49,8 +52,9 @@ Unregister-ScheduledTask -TaskName $NOMBRE -Confirm:$false -ErrorAction Silently
 Register-ScheduledTask -TaskName $NOMBRE -Action $accion -Trigger $disparador `
   -Settings $ajustes -Description 'Baja datos de Snowflake, corre QA y publica el dashboard Seguimiento Equipo.' | Out-Null
 
-$cuando = if ($Diario) { "todos los dias a las $Hora" } else { "los $Dia a las $Hora" }
-Write-Host "Tarea programada: $cuando." -ForegroundColor Green
+$cuando = if ($Diario) { "todos los dias" } else { "los $Dia" }
+Write-Host "Tarea programada: $cuando a las $($horas -join ', ')." -ForegroundColor Green
+Write-Host "  (el 2o y 3er intento solo actuan si el 1o no pudo)" -ForegroundColor DarkGray
 Write-Host "Bitacora: $HERE\refresh.log"
 Write-Host "Para quitarla:  powershell -ExecutionPolicy Bypass -File instalar_tarea.ps1 -Quitar"
 Write-Host ""

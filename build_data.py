@@ -259,24 +259,35 @@ def ensamblar(series, catalogo, mtd, max_day, fuente):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--sheet', action='store_true', help='forzar el Google Sheet')
+    ap.add_argument('--sheet', action='store_true',
+                    help='usar el Google Sheet en vez de Snowflake (hay que pedirlo)')
+    ap.add_argument('--salida', default=os.path.join(HERE, 'data', 'seguimiento.json'),
+                    help='a donde escribir el JSON')
     args = ap.parse_args()
 
     if args.sheet:
-        print('Fuente: Google Sheet (forzada)')
+        print('Fuente: Google Sheet (pedida explicitamente)')
         data = from_sheet()
     else:
+        print('Fuente: Snowflake (se abrira el navegador para SSO la 1a vez)')
         try:
-            print('Fuente: Snowflake (se abrira el navegador para SSO la 1a vez)')
             data = from_snowflake()
         except Exception as e:
-            print(f'  Snowflake fallo: {e}\n  -> usando el Google Sheet como respaldo')
-            data = from_sheet()
+            # No se cae al Sheet en automatico: hoy va 4 meses atrasado y con los
+            # decimales corrompidos, asi que publicarlo seria peor que no publicar.
+            msg = str(e)
+            print(f'\n  Snowflake fallo: {msg[:300]}')
+            if 'is not allowed to access' in msg:
+                print('\n  -> Es la lista blanca de IPs de Snowflake: estas fuera de la red')
+                print('     de Rappi. Conectate a la VPN y vuelve a correr.')
+            print('\n  No se genera nada. El snapshot anterior queda intacto.')
+            print('  Si de verdad quieres usar el Sheet como respaldo: '
+                  'python build_data.py --sheet')
+            sys.exit(1)
 
     payload = ensamblar(*data)
-    out_dir = os.path.join(HERE, 'data')
-    os.makedirs(out_dir, exist_ok=True)
-    path = os.path.join(out_dir, 'seguimiento.json')
+    path = args.salida
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     raw = json.dumps(payload, ensure_ascii=False, separators=(',', ':'))
     with open(path, 'w', encoding='utf-8') as f:
         f.write(raw)
